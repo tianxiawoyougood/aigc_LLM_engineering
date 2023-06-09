@@ -1,14 +1,15 @@
 import re
+import os
 from typing import List, Union
 # Python内置模块，用于格式化和包装文本
 import textwrap
 import time
 
 from langchain.agents import (
-    Tool,          # 可用工具
-    AgentExecutor, # Agent执行
-    LLMSingleActionAgent, # 定义Agent
-    AgentOutputParser, # 输出结果解析
+    Tool,  # 可用工具
+    AgentExecutor,  # Agent执行
+    LLMSingleActionAgent,  # 定义Agent
+    AgentOutputParser,  # 输出结果解析
 )
 from langchain.prompts import StringPromptTemplate
 # LLMChain，包含一个PromptTemplate和一个LLM
@@ -31,6 +32,7 @@ CONTEXT_QA_PROMPT = PromptTemplate(
     template=CONTEXT_QA_TMPL,
 )
 
+
 # 输出结果显示，每行最多60字符，每个字符显示停留0.1秒（动态显示效果）
 def output_response(response: str) -> None:
     if not response:
@@ -45,6 +47,7 @@ def output_response(response: str) -> None:
         print()  # Move to the next line after each line is printed
     # 遇到这里，这个问题的回答就结束了
     print("----------------------------------------------------------------")
+
 
 # 模拟公司产品和公司介绍的数据源
 class TeslaDataSource:
@@ -110,32 +113,35 @@ class CustomPromptTemplate(StringPromptTemplate):
             str: 填充好后的 template。
         """
         # 取出中间步骤并进行执行
-        intermediate_steps = kwargs.pop("intermediate_steps")  
+        intermediate_steps = kwargs.pop("intermediate_steps")
         print('intermediate_steps=', intermediate_steps)
-        print('='*30)
+        print('=' * 30)
         thoughts = ""
         for action, observation in intermediate_steps:
             thoughts += action.log
             thoughts += f"\nObservation: {observation}\nThought: "
         # 记录下当前想法 => 赋值给agent_scratchpad
-        kwargs["agent_scratchpad"] = thoughts  
+        kwargs["agent_scratchpad"] = thoughts
         # 枚举所有可使用的工具名+工具描述
         kwargs["tools"] = "\n".join(
             [f"{tool.name}: {tool.description}" for tool in self.tools]
-        )  
+        )
         # 枚举所有的工具名称
         kwargs["tool_names"] = ", ".join(
             [tool.name for tool in self.tools]
-        )  
+        )
         cur_prompt = self.template.format(**kwargs)
-        #print(cur_prompt)
+        # print(cur_prompt)
         return cur_prompt
+
 
 """
     对Agent返回结果进行解析，有两种可能：
     1）还在思考中 AgentAction
     2）找到了答案 AgentFinal
 """
+
+
 class CustomOutputParser(AgentOutputParser):
     def parse(self, llm_output: str) -> Union[AgentAction, AgentFinish]:
         """
@@ -148,7 +154,7 @@ class CustomOutputParser(AgentOutputParser):
             Union[AgentAction, AgentFinish]: _description_
         """
         # 如果句子中包含 Final Answer 则代表已经完成
-        if "Final Answer:" in llm_output:  
+        if "Final Answer:" in llm_output:
             return AgentFinish(
                 return_values={"output": llm_output.split("Final Answer:")[-1].strip()},
                 log=llm_output,
@@ -166,6 +172,9 @@ class CustomOutputParser(AgentOutputParser):
             tool=action, tool_input=action_input.strip(" ").strip('"'), log=llm_output
         )
 
+
+os.environ["OPENAI_API_KEY"] = "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"
+os.environ["SERPAPI_API_KEY"] = "7608668ae794e1d82215cb23d197b2e5a34a53c815c1eced093ddc5ff2f08b2a"
 
 if __name__ == "__main__":
     ## 定义LLM，需要定义环境变量 OPENAI_API_KEY = XXX
@@ -185,7 +194,7 @@ if __name__ == "__main__":
             description="当用户询问公司相关的问题，可以通过这个工具了解公司信息",
         ),
     ]
-    
+
     # 用户定义的模板
     agent_prompt = CustomPromptTemplate(
         template=AGENT_TMPL,
